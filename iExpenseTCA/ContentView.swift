@@ -7,20 +7,35 @@ struct Application { }
 extension Application: Reducer {
     struct State: Equatable {
         var items: [String:[ExpenseItem]] = [:]
-        @BindingState var showingAddExpense: Bool = false
+//        @PresentationState var destination: Destination.State?
+        @PresentationState var addExpense: AddExpense.State?
+        // @BindingState mostly used in TCA within Forms
     }
-    enum Action: Equatable, BindableAction {
+    enum Action: Equatable {
         case loadDataButtonTapped
         case saveButtonTapped([String:[ExpenseItem]])
         case plusButtonTapped
-        case binding(BindingAction<State>)
+//        case destination(PresentationAction<Destination.Action>)
+        case addExpense(PresentationAction<AddExpense.Action>)
     }
+//    struct Destination: Reducer {
+//        enum State: Equatable {
+//            case addExpense
+//        }
+//        enum Action: Equatable {
+//            case addExpense
+//        }
+//        var body: some ReducerOf<Self> {
+//            EmptyReducer()
+//        }
+//    }
     var body: some Reducer<State, Action> {
-        BindingReducer() // creating and running a binding reducer before our reducer runs
         Reduce { state, action in
             switch action {
-            case .binding:
+            case .addExpense:
                 return .none
+//            case .destination:
+//                return .none
             case .loadDataButtonTapped:
                 state.items = loadItems()
                 return .none
@@ -28,9 +43,16 @@ extension Application: Reducer {
                 saveItems(items: items)
                 return .none
             case .plusButtonTapped:
-                state.showingAddExpense = true
+                state.addExpense = .init()
+//                state.destination = .addExpense
                 return .none
             }
+        }
+//        .ifLet(\.$destination, action: /Application.Action.destination) {
+//            Destination()
+//        } // this runs only if the destination state is populated (ie not nil, hence ifLet won't run if nil)
+        .ifLet(\.$addExpense, action: /Application.Action.addExpense) {
+            AddExpense()
         }
     }
     
@@ -52,9 +74,6 @@ extension Application: Reducer {
 
 struct ContentView: View {
     let store: StoreOf<Application>
-    
-    // TODO: move this binding into TCA
-    @State private var showingAddExpense = false
     
     var body: some View {
         WithViewStore(store, observe: { $0 }) { viewStore in
@@ -81,9 +100,12 @@ struct ContentView: View {
                         Text("business")
                     }
                 }
-                .sheet(isPresented: viewStore.$showingAddExpense) {
-                    AddView()
+                .sheet(store: store.scope(state: \.$addExpense, action: { .addExpense($0) })) {
+                    AddExpenseView(store: $0)
                 }
+//                .sheet(isPresented: viewStore.$showingAddExpense) {
+//                    AddView()
+//                }
                 // @PresentationState
                 
                 Button {
