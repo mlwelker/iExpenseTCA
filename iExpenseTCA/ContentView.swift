@@ -7,19 +7,28 @@ struct Application { }
 extension Application: Reducer {
     struct State: Equatable {
         var items: [String:[ExpenseItem]] = [:]
+        @BindingState var showingAddExpense: Bool = false
     }
-    enum Action: Equatable {
+    enum Action: Equatable, BindableAction {
         case loadDataButtonTapped
         case saveButtonTapped([String:[ExpenseItem]])
+        case plusButtonTapped
+        case binding(BindingAction<State>)
     }
     var body: some Reducer<State, Action> {
+        BindingReducer() // creating and running a binding reducer before our reducer runs
         Reduce { state, action in
             switch action {
+            case .binding:
+                return .none
             case .loadDataButtonTapped:
                 state.items = loadItems()
                 return .none
             case .saveButtonTapped(let items):
                 saveItems(items: items)
+                return .none
+            case .plusButtonTapped:
+                state.showingAddExpense = true
                 return .none
             }
         }
@@ -54,7 +63,7 @@ struct ContentView: View {
                     Text("iExpense").font(.largeTitle).bold()
                     Spacer()
                     Button {
-                        showingAddExpense = true
+                        viewStore.send(.plusButtonTapped)
                     } label: {
                         Image(systemName: "plus").font(.title)
                     }
@@ -72,9 +81,10 @@ struct ContentView: View {
                         Text("business")
                     }
                 }
-                .sheet(isPresented: $showingAddExpense) {
+                .sheet(isPresented: viewStore.$showingAddExpense) {
                     AddView()
                 }
+                // @PresentationState
                 
                 Button {
                     viewStore.send(.loadDataButtonTapped)
